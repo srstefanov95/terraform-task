@@ -41,3 +41,20 @@ resource "aws_key_pair" "mykey" {
 }
 ```
 
+> [!NOTE]
+> I store my AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in an .env file. A better approach would be to use AWS Secrets Manager.
+
+Before running any terraform commands we have to provide the AWS session environment variables for the terraform API authentication.
+I have created the `set_keys.sh` bash script to load the variables from .env file to session without manually running multiple commands in terminal:
+
+```
+#!/usr/bin/bash
+dos2unix.exe .env
+set -o allexport
+source .env
+set +o allexport
+```
+
+### Terraform instances
+
+
