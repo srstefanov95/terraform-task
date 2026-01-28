@@ -20,5 +20,24 @@ Create a private subnet with dynamic local IP with connectivity to instance in p
 ### Terraform setup and AWS connection
 Before starting work on the project I have gone through these prerequisites:
 - Created an AWS account and a user named `terraform` from which I will operate through.
-- Assigned **AmazonEC2FullAccess** and **PowerUserAccess** policies to 
+- Assigned **AmazonEC2FullAccess** and **PowerUserAccess** policies to this user to be able to create and destroy resources.
+> [!WARNING]
+> These policies probably give broader permissions than needed for the purpose of IaC. A realistic policy configuration would have more granular and specific permissions, consider researching further.
+- Generated a 4096 bit RSA key pair with `ssh-keygen -t rsa -b 4096 -f ~/.ssh/terraform`
+- Changed the permission of private key to read only to prevent ssh errors `chmod 400 ~/.ssh/terraform`
+- Assigned the RSA public key to the `terraform` user which will be used for terraform authentication
+- Installed terraform locally and initiated the project with `terraform init` command
+
+### Terraform configurations
+I've created an AWS **provider** and specified the region. Also provided my public RSA key named `mykey`
+```
+provider "aws" {
+  region = "us-east-1"
+}
+
+resource "aws_key_pair" "mykey" {
+  key_name = "mykey"
+  public_key = file("~/.ssh/terraform.pub")
+}
+```
 
