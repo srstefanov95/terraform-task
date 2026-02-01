@@ -1,6 +1,6 @@
 # Terraform AWS Practice Project
 
-## Task Overview:
+## Task Overview
 
 1. Create vpc
 2. Create Internet Gateway
@@ -13,10 +13,10 @@
 9. Create Amazon Linux server instance and install/enable httpd to host a simple page
 10. Attach network interface to instance and test internet connectivity, visit host page
 
-## Bonus Task:
+## Bonus Task
 Create a private subnet with dynamic local IP with connectivity to instance in public subnet, but no connectivity to internet.
 
-## Walktrough:
+## Walktrough
 ### Terraform setup and AWS connection
 Before starting work on the project I have gone through these prerequisites:
 - Created an AWS account and a user named `terraform` from which I will operate through.
