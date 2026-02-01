@@ -58,7 +58,7 @@ set +o allexport
 ### Network
 <img width="1045" height="722" alt="image" src="https://github.com/user-attachments/assets/7c8560b6-67fa-4992-9f24-e5bdf7b87e63" />
 
-First, I created a VPC with range of `10.0.0.0/16`, a Public Subnet within this VPC with range of `10.0.0.0/24`
+First, I created a VPC with range of `10.0.0.0/16`, a Public Subnet within this VPC with range of `10.0.0.0/24` and a private isolated subnet of `10.0.1.0/25.
 
 ```
 resource "aws_vpc" "my_network" {
@@ -77,6 +77,15 @@ resource "aws_subnet" "public_subnet" {
   availability_zone = "us-east-1a"
   tags={
     Name = "Public Subnet"
+  }
+}
+
+resource "aws_subnet" "private_subnet_isolated" {
+  vpc_id = aws_vpc.my_network.id
+  cidr_block = "10.0.1.0/25"
+  availability_zone = "us-east-1a"
+  tags={
+    Name = "Isolated Subnet"
   }
 }
 ```
@@ -105,7 +114,7 @@ resource "aws_network_interface" "eni1" {
   }
 }
 ```
-Then I created an elastic (public) IP which will be exposed to the internet and will be used to connect to the instance through my local machine. The EIP is associated with the ENI (named `eni1`) and its private  ip of `10.0.0.50`.
+Then I created an elastic (public) IP which will be exposed to the internet and will be used to connect to the public instance through my local machine. The EIP is associated with the ENI (named `eni1`) and its private  ip of `10.0.0.50`.
 
 ```
 resource "aws_eip" "public_ip" {
@@ -153,7 +162,23 @@ resource "aws_route_table_association" "public_association" {
   subnet_id = aws_subnet.public_subnet.id
   route_table_id = aws_route_table.my_route_table.id
 }
-``` 
+```
+
+For the private subnet, we only need to provide connection to the public subnet in the same VPC. To achieve this we need to again provision a route table and route table association. Notice that we do neet to describe a specific route, providing the vpc id is enough.
+
+```
+resource "aws_route_table" "private_route_table_isolated" {
+  vpc_id = aws_vpc.my_network.id
+}
+
+resource "aws_route_table_association" "private_association_isolated" {
+  subnet_id = aws_subnet.private_subnet_isolated.id
+  route_table_id = aws_route_table.private_route_table_isolated.id
+}
+```
+
+
+
 ### Security Group
 We have to enable the following ports for the purpose of our task, otherwise the instances would be created but not reachable:
 - Port 22 - for SSh
@@ -241,6 +266,22 @@ resource "aws_instance" "prod-server" {
   }
 }
 ```
+
+And a separate instance for the private subnet is created too. Notice that the security group is attached here, because this instance has no ENI attached to it.
+```
+resource "aws_instance" "private-isolated-server" {
+  ami = data.aws_ssm_parameter.al2023_standard.value
+  instance_type = "t3.micro"
+  availability_zone = "us-east-1a"
+  key_name = aws_key_pair.mykey.key_name
+  subnet_id = aws_subnet.private_subnet_isolated.id
+  security_groups = [ aws_security_group.ssh_sg.id ]
+  
+  tags = {
+    Name="Private Isolated Server"
+    description="Connects only to public subnet and vice versa."
+  }
+```
 ### Outputs
 I output my instances IPs for visibility. One of the outputs (prod_ip_public) is used in a bash script to connect via ssh.
 ```
@@ -259,11 +300,39 @@ output "isolated_ip" {
     description = "Isolated Server private IP address"
 }
 ```
-<img width="575" height="279" alt="image" src="https://github.com/user-attachments/assets/24942c57-1abc-412c-99f3-e136ed3f2605" />
+<img width="580" height="187" alt="image" src="https://github.com/user-attachments/assets/f4124bc7-204d-43c2-88b7-64379abc9c97" />
+
 
 ### Testing connectivity
 Once we have ran `terraform apply` and resource have been created, we can now test our infrastructe.
-Before
+We will do this in 2 steps.
+1. SSH to public instance via its EIP, using the private key from the provided `aws_key_pair` resource which is named `mykey`. The private key is located on my local machine. Once inside the public instance we will run the httpd service, hosting a simple web page. Additionally, we will use the ping command.
+
+<img width="594" height="161" alt="image" src="https://github.com/user-attachments/assets/c2b4b4ee-26df-40c8-b5db-d8ac0b87da1b" />
+<img width="797" height="511" alt="image" src="https://github.com/user-attachments/assets/4b2cab89-5821-4c5d-9f51-c1540bdc7b80" />
+
+2. Once SSH inside the public instance we can test connectivity to the private isolated instance.
+   <img width="580" height="243" alt="image" src="https://github.com/user-attachments/assets/1dce3fc5-514f-4a39-9765-01608ba1cc08" />
+
+2.1. Now, in order to jump from public instance to private one, we will once again need the private RSA key (copy it from local machine to EC2). To avoid doing this manually each time I have provisioned this simple bash script. It stores the terraform output of public EC2 EIP as variable and first copies the key, then connects into the instance via SSH. In this way we are already setup.
+
+```
+#!/usr/bin/bash
+SERVER=$(terraform output -raw prod_ip_public)
+KEY=~/.ssh/terraform
+
+scp -i  $KEY $KEY ec2-user@$SERVER:/home/ec2-user/.ssh/
+ssh -i $KEY ec2-user@$SERVER
+```
+When connected to public EC2, we can verify that key is there.
+<img width="601" height="141" alt="image" src="https://github.com/user-attachments/assets/509bd006-0261-43da-89ff-1af40d41e0a4" />
+
+2.2. Now we connect to private instance in the same way and test:
+
+<img width="1101" height="711" alt="image" src="https://github.com/user-attachments/assets/1af9eeb4-5dc9-4466-9910-a6e897314837" />
+
+
+
 
 
 
