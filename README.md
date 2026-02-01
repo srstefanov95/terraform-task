@@ -327,6 +327,9 @@ ssh -i $KEY ec2-user@$SERVER
 When connected to public EC2, we can verify that key is there.
 <img width="601" height="141" alt="image" src="https://github.com/user-attachments/assets/509bd006-0261-43da-89ff-1af40d41e0a4" />
 
+> [!IMPORTANT]
+> The above screenshot shows that everyone has read permissions to this private key, making it insecure. Running the SSH command with this key resulted in error. I had to run `chmod 400 ~/.ssh/terraform` to make it accessible only to ec2-user.
+
 2.2. Now we connect to private instance in the same way and test:
 
 <img width="1101" height="711" alt="image" src="https://github.com/user-attachments/assets/1af9eeb4-5dc9-4466-9910-a6e897314837" />
